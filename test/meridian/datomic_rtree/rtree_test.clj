@@ -83,7 +83,7 @@
   (mapv #(d/entity db (first %))
         (d/q '[:find ?e :where [?e :node/entry]] db)))
 
-(deftest test-tree-creation
+#_(deftest test-tree-creation
   (let [uri "datomic:mem://rtrees"
         num-entries 100
         conn (utils/create-and-connect-db uri
@@ -94,7 +94,7 @@
     (utils/load-ents conn 6 3)
     (is (= num-entries (count (all-entries (d/db conn)))))))
 
-(deftest test-bulk-tree-creation
+#_(deftest test-bulk-tree-creation
   (let [uri "datomic:mem://rtrees"
         num-entries 100
         conn (utils/create-and-connect-db uri

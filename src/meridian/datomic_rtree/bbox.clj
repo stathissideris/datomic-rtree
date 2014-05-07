@@ -1,4 +1,5 @@
-(ns meridian.datomic-rtree.bbox)
+(ns meridian.datomic-rtree.bbox
+  (:refer-clojure :exclude [contains?]))
 
 (defn bbox [x y w h]
   {:bbox/max-x (+ x w) :bbox/min-x x
