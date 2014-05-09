@@ -39,6 +39,10 @@
       :bbox [min-x min-y max-x max-y]}
      hilbert-index)))
 
+(defn point-entry [hilbert-index-fn x y]
+  (minimal-entry hilbert-index-fn
+                 (bbox/bbox (double x) (double y) (double 0) (double 0))))
+
 (defn rand-entries [entry-constructor]
   (let [hilbert-index (hilbert/index-fn 28 [0.0 600.0])]
     (->> (repeatedly #(bbox/bbox (rand 540) (rand 540) (+ 10 (rand 50)) (+ 10 (rand 50))))
@@ -147,3 +151,25 @@
     (tree-build-timings create-db num-entries max-children min-children)
     (search-timings create-db num-entries max-children min-children)))
 
+(defn- dump-tree-step [node hide-bbox?]
+  (let [to-map (fn [x hide-bbox?]
+                 (let [m
+                       (if hide-bbox?
+                         (dissoc (into {} (seq x))
+                                 :bbox :bbox/max-y :bbox/max-x :bbox/min-y :bbox/min-x :bbox/hilbert-val)
+                         (into {} (seq x)))]
+                   (if (or (:node/is-leaf? m) (:node/entry m) (:type m))
+                     (if (:node/is-leaf? m) (assoc m :LEAF true) m)
+                     (assoc m :BRANCH true))))]
+    (if-let [children (:node/children node)]
+      (assoc (to-map node hide-bbox?)
+        :node/children
+        (map #(dump-tree-step % hide-bbox?) children))
+      (if-let [entry (:node/entry node)]
+        (assoc (to-map node hide-bbox?) :node/entry (to-map entry hide-bbox?))
+        (to-map node hide-bbox?)))))
+
+(defn dump-tree [the-db & {:keys (hide-bbox?) :or {hide-bbox? false}}]
+  (let [tree (find-tree the-db)
+        root (:rtree/root tree)]
+    (dump-tree-step root hide-bbox?)))
