@@ -36,10 +36,9 @@
 
 (defn distance-search [[center-x center-y] distance db]
   (let [bbox (create-bbox-for-circle [center-x center-y] distance)
-        _ (println "test 2")
-        results-inside-bbox (rtree/containing (:rtree/root (test-utils/find-tree db)) bbox)]
-    (println "test")
-    (filter (by-distance [center-x center-y] distance) results-inside-bbox)))
+        results-inside-bbox (rtree/intersecting (:rtree/root (test-utils/find-tree db)) bbox)]
+    (filter (by-distance [center-x center-y] distance) results-inside-bbox)
+    ))
 
 (defn print-result [db1 result]
   (->> result first (d/entity db1) seq clojure.pprint/pprint))
@@ -55,5 +54,5 @@
   (d/q '[:find ?e :where [?e :node/entry]] db1)
   (->> (d/q '[:find ?e :where [?e :node/entry]] db1) ffirst (d/entity db1) (seq) (clojure.pprint/pprint))
   (clojure.pprint/pprint (seq (map #(d/entity db1 %) (first (d/q '[:find ?e :where [?e :node/entry] [?e :bbox/max-y 269.27033000145093 ]] db1)))))
-  (print-all-results db1 (distance-search [1 2] 3 db1))
+  (clojure.pprint/pprint (distance-search [133 76] 2 db1))
   )
