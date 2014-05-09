@@ -96,12 +96,33 @@
         max 6
         min 3
         point-count 30
-
+        d-search(fn [[x y] distance database]
+                      (->> (dist-search/distance-search [x y] distance database)
+                           (map (fn [x] (->> x :node/entry seq (into {}))))
+                           (into #{})))
         points [(point 1 1)
                 (point 5 3)
                 (point 1 3)
                 (point 3 1)
-                (point 4 4)]]
+                (point 4 4)
+
+                (point 100 100)
+                (point 110 110)
+                (point 90 90)
+                (point 120 120)
+                (point 200 100)
+                (point 220 105)
+                (point 220 90)
+                (point 200 90)
+
+                (point 100 350)
+                (point 110 360)
+                (point 90 330)
+                (point 100 300)
+                (point 120 320)
+                (point 100 360)
+
+                (point 550 500)]]
     (do
       (def conn conn);;TODO clean up
       (utils/create-tree conn max min)
@@ -110,12 +131,11 @@
       (utils/bulk-load-ents conn max min bulk/dyn-cost-partition))
     (testing "point insertion to r-tree"
       (is (=
-           #{{:bbox "[5.0 3.0 5.0 3.0]\n", :type :Point}
-             {:bbox "[1.0 1.0 1.0 1.0]\n", :type :Point}
+           #{{:bbox "[1.0 1.0 1.0 1.0]\n", :type :Point}
              {:bbox "[1.0 3.0 1.0 3.0]\n", :type :Point}
              {:bbox "[4.0 4.0 4.0 4.0]\n", :type :Point}
              {:bbox "[3.0 1.0 3.0 1.0]\n", :type :Point}}
-           (dist-search/distance-search [2.0 2.0] 2 (db conn))))
+           (d-search [2.0 2.0] 2 (db conn))))
       )))
 
 

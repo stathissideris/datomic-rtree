@@ -30,9 +30,12 @@
         height width]
     (bbox/bbox min-x min-y width height)))
 
-(defn by-distance [[x y] r]
-  (let [center-point (jts/point [x y])]
-    #(< (.distance (jts/point [(:bbox/max-x %) (:bbox/max-y %)]) center-point))))
+(defn by-distance [[cx cy] r]
+  (let [center-point (jts/point [cx cy])]
+    (fn [node]
+      (let [entry (:node/entry node)
+            [x y] (read-string (:bbox entry))]
+        (< (.distance (jts/point [x y]) center-point))))))
 
 (defn distance-search [[center-x center-y] distance db]
   (let [bbox (create-bbox-for-circle [center-x center-y] distance)
