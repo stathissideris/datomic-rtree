@@ -2,7 +2,9 @@
   (:require [meridian.datomic-rtree.point :refer :all]
             [clojure.test :refer :all]
             [clojure.walk :as walk]
+            [clojure.java.io :as io]
             [datomic.api :refer (q db) :as d]
+            [dali.svg-translate :as dali]
             [meridian.datomic-rtree
              [rtree :as rtree]
              [test-utils :as utils]
@@ -13,6 +15,29 @@
              [distance-search :as dist-search]
              [polygon-search :as poly-search]]
             [meridian.clj-jts :as jts]))
+
+(defn connect-datomic []
+  (utils/create-and-connect-db
+   "datomic:mem://rtrees"
+   "resources/datomic/schema.edn"
+   "resources/datomic/geojsonschema.edn"))
+
+(defn distance-search
+  [[x y] distance database]
+  (->> (dist-search/distance-search [x y] distance database)
+       (map (fn [x] (->> x :node/entry seq (into {}))))
+       (into #{})))
+
+(defn polygon-search
+  [polygon database]
+  (->> (poly-search/polygon-search polygon database)
+       (map (fn [x] (->> x :node/entry seq (into {}))))
+       (into #{})))
+
+(defn insert-points-and-index [conn points max-children min-children]
+  (utils/create-tree conn max-children min-children)
+  @(d/transact conn points)
+  (utils/bulk-load-ents conn max-children min-children bulk/dyn-cost-partition))
 
 (deftest point-contained-test
   (are [p bbox] (true? (contained? p bbox))
@@ -30,8 +55,6 @@
               "resources/datomic/geojsonschema.edn")
         hilbert-index-fn (hilbert/index-fn 28 [0.0 600.0])
         point (partial utils/point-entry hilbert-index-fn)
-        max 6
-        min 3
         point-count 30
         search-bbox (fn [bbox]
                       (->> (rtree/intersecting
@@ -62,12 +85,7 @@
                 (point 100 360)
 
                 (point 550 500)]]
-    (do
-      (def conn conn);;TODO clean up
-      (utils/create-tree conn max min)
-      ;;(utils/install-rand-ents conn point-count utils/minimal-entry)
-      @(d/transact conn points)
-      (utils/bulk-load-ents conn max min bulk/dyn-cost-partition))
+    (insert-points-and-index conn points 6 3)
     (testing "point insertion to r-tree"
       (is (=
            #{{:bbox "[5.0 3.0 5.0 3.0]\n", :type :Point}
@@ -95,13 +113,6 @@
               "resources/datomic/geojsonschema.edn")
         hilbert-index-fn (hilbert/index-fn 28 [0.0 600.0])
         point (partial utils/point-entry hilbert-index-fn)
-        max 6
-        min 3
-        point-count 30
-        d-search(fn [[x y] distance database]
-                      (->> (dist-search/distance-search [x y] distance database)
-                           (map (fn [x] (->> x :node/entry seq (into {}))))
-                           (into #{})))
         points [(point 1 1)
                 (point 5 3)
                 (point 1 3)
@@ -125,14 +136,9 @@
                 (point 100 360)
 
                 (point 550 500)]]
-    (do
-      (def conn conn);;TODO clean up
-      (utils/create-tree conn max min)
-      ;;(utils/install-rand-ents conn point-count utils/minimal-entry)
-      @(d/transact conn points)
-      (utils/bulk-load-ents conn max min bulk/dyn-cost-partition))
+    (insert-points-and-index conn points 6 3)
     (testing "Distance search"
-      (let [res (d-search [2.0 2.0] 2.4 (db conn))]
+      (let [res (distance-search [2.0 2.0] 2.4 (db conn))]
         (is (=
              #{{:bbox "[1.0 1.0 1.0 1.0]\n", :type :Point}
                {:bbox "[1.0 3.0 1.0 3.0]\n", :type :Point}
@@ -147,13 +153,6 @@
               "resources/datomic/geojsonschema.edn")
         hilbert-index-fn (hilbert/index-fn 28 [0.0 600.0])
         point (partial utils/point-entry hilbert-index-fn)
-        max 6
-        min 3
-        point-count 30
-        p-search(fn [polygon database]
-                      (->> (poly-search/polygon-search polygon database)
-                           (map (fn [x] (->> x :node/entry seq (into {}))))
-                           (into #{})))
         points [(point 1 1)
                 (point 5 3)
                 (point 1 3)
@@ -177,19 +176,39 @@
                 (point 100 360)
 
                 (point 550 500)]]
-    (do
-      (def conn conn);;TODO clean up
-      (utils/create-tree conn max min)
-      ;;(utils/install-rand-ents conn point-count utils/minimal-entry)
-      @(d/transact conn points)
-      (utils/bulk-load-ents conn max min bulk/dyn-cost-partition))
+    (insert-points-and-index conn points 6 3)
     (testing "polygon search"
       (is (=
            #{{:bbox "[4.0 4.0 4.0 4.0]\n", :type :Point}
              {:bbox "[5.0 3.0 5.0 3.0]\n", :type :Point}
              }
-           (p-search (jts/polygon [[[2 2] [2 100] [80 100] [100 2] [2 2]]]) (db conn))))
-      )))
+           (polygon-search (jts/polygon [[[2 2] [2 100] [80 100] [100 2] [2 2]]]) (db conn)))))))
+
+(defn test-advanced-polygon-search []
+  (let [conn (connect-datomic)
+        hilbert-index-fn (hilbert/index-fn 28 [0.0 1001.0])
+        make-point (partial utils/point-entry hilbert-index-fn)
+        raw-points (-> "test-data/search-points.edn" io/resource slurp read-string)
+        points (map (fn [[x y]] (make-point x y)) raw-points)]
+    (insert-points-and-index conn points 6 3)
+    (let [matches (map
+                   #(-> % :bbox read-string)
+                   (distance-search [369.2355 616.3675000000001] 107.9805 (db conn)))
+          svg [:page {:height 1000 :width 1000 :stroke {:paint :black :width 1} :fill :none}
+               [:circle [369.2355 616.3675000000001] 107.9805]
+               [:g {:id :all-data, :stroke :black, :fill "lightgray"}
+                (map (fn [[x y]] [:circle [x y] 2]) raw-points)]
+               [:g {:id :distance-matches, :stroke :green, :fill "springgreen"}
+                (map (fn [[x y]] [:circle [x y] 3]) matches)]]]
+      (-> svg dali/dali->hiccup (dali/spit-svg "/var/www/points-query.svg")))))
+
+#_(test-advanced-polygon-search)
+
+(def distance-query [:circle [369.2355 616.3675000000001] 107.9805])
+
+(def pi-query "m 301,829 29,-193 239,-3 17,283 -85,-12 1,-200 -106,-4 -11,144 z")
+
+(def star-query "m 735,313 18,-66 17,-59 33,11 5,59 -22,66 117,-14 9,23 -37,52 -105,11 -54,109 -49,-61 44,-95 -27,-30 -21,0 -28,-7 1,-93 17,-28 13,57 54,41 z")
 
 
 (comment

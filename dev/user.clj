@@ -38,7 +38,7 @@
   (let [max-x (reduce max (map first points))
         max-y (reduce max (map second points))
         svg [:page {:height (+ max-y 10) :width (+ max-x 10) :stroke {:paint :black :width 1} :fill :none}
-             (map (fn [[x y]] [:circle [(* 2 x) (* 2 y)] 2]) points)]]
+             (map (fn [[x y]] [:circle [x y] 2]) points)]]
     (-> svg dali/dali->hiccup (dali/spit-svg filename))))
 
 (comment
