@@ -10,7 +10,9 @@
              [bulk :as bulk]
              [shapes :as shapes]
              [hilbert :as hilbert]
-             [distance-search :as dist-search]]))
+             [distance-search :as dist-search]
+             [polygon-search :as poly-search]]
+            [meridian.clj-jts :as jts]))
 
 (deftest point-contained-test
   (are [p bbox] (true? (contained? p bbox))
@@ -129,13 +131,64 @@
       ;;(utils/install-rand-ents conn point-count utils/minimal-entry)
       @(d/transact conn points)
       (utils/bulk-load-ents conn max min bulk/dyn-cost-partition))
-    (testing "point insertion to r-tree"
+    (testing "Distance search"
+      (let [res (d-search [2.0 2.0] 2.4 (db conn))]
+        (is (=
+             #{{:bbox "[1.0 1.0 1.0 1.0]\n", :type :Point}
+               {:bbox "[1.0 3.0 1.0 3.0]\n", :type :Point}
+               {:bbox "[3.0 1.0 3.0 1.0]\n", :type :Point}}
+             res))))))
+
+(deftest test-polygon-search
+  (let [uri "datomic:mem://rtrees"
+        conn (utils/create-and-connect-db
+              uri
+              "resources/datomic/schema.edn"
+              "resources/datomic/geojsonschema.edn")
+        hilbert-index-fn (hilbert/index-fn 28 [0.0 600.0])
+        point (partial utils/point-entry hilbert-index-fn)
+        max 6
+        min 3
+        point-count 30
+        p-search(fn [polygon database]
+                      (->> (poly-search/polygon-search polygon database)
+                           (map (fn [x] (->> x :node/entry seq (into {}))))
+                           (into #{})))
+        points [(point 1 1)
+                (point 5 3)
+                (point 1 3)
+                (point 3 1)
+                (point 4 4)
+
+                (point 100 100)
+                (point 110 110)
+                (point 90 90)
+                (point 120 120)
+                (point 200 100)
+                (point 220 105)
+                (point 220 90)
+                (point 200 90)
+
+                (point 100 350)
+                (point 110 360)
+                (point 90 330)
+                (point 100 300)
+                (point 120 320)
+                (point 100 360)
+
+                (point 550 500)]]
+    (do
+      (def conn conn);;TODO clean up
+      (utils/create-tree conn max min)
+      ;;(utils/install-rand-ents conn point-count utils/minimal-entry)
+      @(d/transact conn points)
+      (utils/bulk-load-ents conn max min bulk/dyn-cost-partition))
+    (testing "polygon search"
       (is (=
-           #{{:bbox "[1.0 1.0 1.0 1.0]\n", :type :Point}
-             {:bbox "[1.0 3.0 1.0 3.0]\n", :type :Point}
-             {:bbox "[4.0 4.0 4.0 4.0]\n", :type :Point}
-             {:bbox "[3.0 1.0 3.0 1.0]\n", :type :Point}}
-           (d-search [2.0 2.0] 2 (db conn))))
+           #{{:bbox "[4.0 4.0 4.0 4.0]\n", :type :Point}
+             {:bbox "[5.0 3.0 5.0 3.0]\n", :type :Point}
+             }
+           (p-search (jts/polygon [[[2 2] [2 100] [80 100] [100 2] [2 2]]]) (db conn))))
       )))
 
 

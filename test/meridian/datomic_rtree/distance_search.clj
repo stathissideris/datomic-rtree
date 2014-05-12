@@ -35,7 +35,7 @@
     (fn [node]
       (let [entry (:node/entry node)
             [x y] (read-string (:bbox entry))]
-        (< (.distance (jts/point [x y]) center-point))))))
+        (<= (.distance (jts/point [x y]) center-point) r)))))
 
 (defn distance-search [[center-x center-y] distance db]
   (let [bbox (create-bbox-for-circle [center-x center-y] distance)
