@@ -174,3 +174,7 @@
   (->> (d/seek-datoms db :avet :bbox/hilbert-val)
        (map #(d/entity db (:e %)))
        (filter :bbox/hilbert-val)))
+
+(defn find [db]
+  (->> (d/q '[:find ?e :where [?e :rtree/root]] db)
+       ffirst (d/entity db)))
