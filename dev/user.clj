@@ -28,13 +28,20 @@
 
 #_ (def conn (d/connect "datomic:mem://rtrees"))
 
-(defn plot-svg-points [conn]
-  (let [points (->> (d/q '[:find ?e :where [?e :type :Point]] (db conn))
-                    (map #(d/entity (db conn) (first %)))
-                    (map #(into {} (seq %)))
-                    (map #(->> % :bbox read-string (take 2))))
-        max-x (reduce max (map first points))
+(defn retrieve-all-points [conn]
+  (->> (d/q '[:find ?e :where [?e :type :Point]] (db conn))
+       (map #(d/entity (db conn) (first %)))
+       (map #(into {} (seq %)))
+       (map #(->> % :bbox read-string (take 2)))))
+
+(defn plot-svg-points [points filename]
+  (let [max-x (reduce max (map first points))
         max-y (reduce max (map second points))
         svg [:page {:height (+ max-y 10) :width (+ max-x 10) :stroke {:paint :black :width 1} :fill :none}
              (map (fn [[x y]] [:circle [(* 2 x) (* 2 y)] 2]) points)]]
-    (-> svg dali/dali->hiccup (dali/spit-svg "/tmp/points.svg"))))
+    (-> svg dali/dali->hiccup (dali/spit-svg filename))))
+
+(comment
+  (let [points (take 3000 (repeatedly #(vector (rand-int 1000) (rand-int 1000))))]
+    (spit "resources/test-data/search-points.edn" (with-out-str (pprint points)))
+    (plot-svg-points points "/var/www/points.svg")))
