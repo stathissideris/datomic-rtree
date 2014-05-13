@@ -53,3 +53,19 @@
             {:node/entry (->ent shape)
              :bbox/hilbert-val (index-fn (bbox/centre box))}))))
  
+(defn point-entry
+  "Function for creating entries specifically for points. Pass a
+  function created using functions from the hilbert namespace.
+
+  The code is similar to create-entry, and it's repeated here to avoid
+  having to make some calculations (extents, cenre) that are normally
+  done for other shapes but are not necessary for points."
+  [index-fn x y]
+  (let [x (double x)
+        y (double y)
+        box {:bbox/max-x x :bbox/min-x x
+             :bbox/max-y y :bbox/min-y y}]
+    (rtree/add-id
+     (merge box
+            {:node/entry (->ent {:type :Point, :x x, :y y, :bbox [x y x y]})
+             :bbox/hilbert-val (index-fn [x y])}))))

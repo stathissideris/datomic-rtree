@@ -39,10 +39,6 @@
       :bbox [min-x min-y max-x max-y]}
      hilbert-index)))
 
-(defn point-entry [hilbert-index-fn x y]
-  (minimal-entry hilbert-index-fn
-                 (bbox/bbox (double x) (double y) (double 0) (double 0))))
-
 (defn rand-entries [entry-constructor]
   (let [hilbert-index (hilbert/index-fn 28 [0.0 600.0])]
     (->> (repeatedly #(bbox/bbox (rand 540) (rand 540) (+ 10 (rand 50)) (+ 10 (rand 50))))
