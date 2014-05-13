@@ -1,8 +1,10 @@
 (ns meridian.datomic-rtree.point-test
   (:require [meridian.datomic-rtree.point :refer :all]
+            [clojure.string :as string]
             [clojure.test :refer :all]
             [clojure.walk :as walk]
             [clojure.java.io :as io]
+            [clojure.pprint :refer (pprint)]
             [datomic.api :refer (q db) :as d]
             [dali.svg-translate :as dali]
             [meridian.datomic-rtree
@@ -184,32 +186,101 @@
              }
            (polygon-search (jts/polygon [[[2 2] [2 100] [80 100] [100 2] [2 2]]]) (db conn)))))))
 
-(defn test-advanced-polygon-search []
-  (let [conn (connect-datomic)
-        hilbert-index-fn (hilbert/index-fn 28 [0.0 1001.0])
+(defn- svg-path->jts-polygon
+  "Converts an SVG path specification into a JTS polygon. This is not
+  supposed to be a generic function, but it works on polyline paths
+  generated using Inkscape."
+  [svg-path]
+  (let [points
+        (->> (string/split svg-path #" ")
+             (rest)
+             (butlast)
+             (map #(string/split % #","))
+             (map (fn [[x y]] [(Double/parseDouble x) (Double/parseDouble y)]))
+             (reductions (fn [[x1 y1] [x2 y2]] [(+ x1 x2) (+ y1 y2)]))
+             (into []))]
+    (jts/polygon (vector (conj points (first points))))))
+
+#_ (svg-path->jts-polygon star-query)
+
+(defn- insert-test-points [filename conn]
+  (let [hilbert-index-fn (hilbert/index-fn 28 [0.0 1001.0])
         make-point (partial utils/point-entry hilbert-index-fn)
-        raw-points (-> "test-data/search-points.edn" io/resource slurp read-string)
+        raw-points (-> filename io/resource slurp read-string)
         points (map (fn [[x y]] (make-point x y)) raw-points)]
-    (insert-points-and-index conn points 6 3)
-    (let [matches (map
-                   #(-> % :bbox read-string)
-                   (distance-search [369.2355 616.3675000000001] 107.9805 (db conn)))
+    (insert-points-and-index conn points 6 3)))
+
+(def extract-result-point #(->> % :bbox read-string (take 2) vec))
+
+(defn test-advanced-polygon-search []
+  (let [dataset-filename "test-data/search-points.edn"
+        conn (connect-datomic)
+        save-result (fn [filename points] (spit filename (with-out-str (pprint points))))
+        raw-points (-> dataset-filename io/resource slurp read-string)]
+    (insert-test-points dataset-filename conn)
+    (let [distance-matches
+          (map
+           extract-result-point
+           (distance-search [369.2355 316.3675000000001] 107.9805 (db conn)))
+
+          star-path "m 735,313 18,-66 17,-59 33,11 5,59 -22,66 117,-14 9,23 -37,52 -105,11 -54,109 -49,-61 44,-95 -27,-30 -21,0 -28,-7 1,-93 17,-28 13,57 54,41 z"
+          path1-matches
+          (map
+           extract-result-point
+           (polygon-search (svg-path->jts-polygon star-path) (db conn)))
+
+          pi-path "m 301,829 29,-193 239,-3 17,283 -85,-12 1,-200 -106,-4 -11,144 z"
+          path2-matches
+          (map
+           extract-result-point
+           (polygon-search (svg-path->jts-polygon pi-path) (db conn)))
+          
           svg [:page {:height 1000 :width 1000 :stroke {:paint :black :width 1} :fill :none}
-               [:circle [369.2355 616.3675000000001] 107.9805]
-               [:g {:id :all-data, :stroke :black, :fill "lightgray"}
+
+               ;;visualize queries
+               [:circle {:stroke {:paint :green :width 2}} [369.2355 316.3675000000001] 107.9805]
+               [:path {:stroke {:paint :red :width 2} :d star-path}]
+               [:path {:stroke {:paint :pink :width 2} :d pi-path}]
+
+               ;;visualize database contents
+               [:g {:id :all-data, :stroke :none, :fill "blue"}
                 (map (fn [[x y]] [:circle [x y] 2]) raw-points)]
-               [:g {:id :distance-matches, :stroke :green, :fill "springgreen"}
-                (map (fn [[x y]] [:circle [x y] 3]) matches)]]]
+
+               ;;visualize matches
+               [:g {:id :distance-matches, :stroke {:paint :green, :width 1.5} :fill :none}
+                (map (fn [[x y]] [:circle [x y] 5]) distance-matches)]
+               [:g {:id :path1-matches, :stroke {:paint :red, :width 1.5} :fill :none}
+                (map (fn [[x y]] [:circle [x y] 5]) path1-matches)]
+               [:g {:id :path2-matches, :stroke {:paint :pink, :width 1.5} :fill :none}
+                (map (fn [[x y]] [:circle [x y] 5]) path2-matches)]]]
+
+      (save-result "resources/test-data/distance-expected.edn" distance-matches)
+      (save-result "resources/test-data/path1-expected.edn" path1-matches)
+      (save-result "resources/test-data/path2-expected.edn" path2-matches)
       (-> svg dali/dali->hiccup (dali/spit-svg "/var/www/points-query.svg")))))
 
-#_(test-advanced-polygon-search)
-
-(def distance-query [:circle [369.2355 616.3675000000001] 107.9805])
-
-(def pi-query "m 301,829 29,-193 239,-3 17,283 -85,-12 1,-200 -106,-4 -11,144 z")
-
-(def star-query "m 735,313 18,-66 17,-59 33,11 5,59 -22,66 117,-14 9,23 -37,52 -105,11 -54,109 -49,-61 44,-95 -27,-30 -21,0 -28,-7 1,-93 17,-28 13,57 54,41 z")
-
+(deftest test-shape-search
+  (let [conn (connect-datomic)]
+    (insert-test-points "test-data/search-points.edn" conn)
+    (testing "distance (circle) search"
+      (is (= (-> "test-data/distance-expected.edn" io/resource slurp read-string)
+             (map
+              extract-result-point
+              (distance-search [369.2355 316.3675000000001] 107.9805 (db conn))))))
+    (testing "star-like polygon search"
+      (is (= (-> "test-data/path1-expected.edn" io/resource slurp read-string)
+             (map
+              extract-result-point
+              (polygon-search (svg-path->jts-polygon
+                               "m 735,313 18,-66 17,-59 33,11 5,59 -22,66 117,-14 9,23 -37,52 -105,11 -54,109 -49,-61 44,-95 -27,-30 -21,0 -28,-7 1,-93 17,-28 13,57 54,41 z")
+                              (db conn))))))
+    (testing "pi-like polygon search"
+      (is (= (-> "test-data/path2-expected.edn" io/resource slurp read-string)
+             (map
+              extract-result-point
+              (polygon-search (svg-path->jts-polygon
+                               "m 301,829 29,-193 239,-3 17,283 -85,-12 1,-200 -106,-4 -11,144 z")
+                              (db conn))))))))
 
 (comment
   (use '[datomic.api :only (q db) :as d])
