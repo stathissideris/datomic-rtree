@@ -1,4 +1,4 @@
-(defproject meridian/datomic-rtree "0.1.1-SNAPSHOT"
+(defproject org.clojars.sideris/datomic-rtree "0.1.1-SNAPSHOT"
   :description "An r-tree based spatial indexer for Datomic."
   :url "http://github.com/jsofra/datomic-rtree"
   :license {:name "Eclipse Public License"
