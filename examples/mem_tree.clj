@@ -79,7 +79,7 @@
                                           "resources/datomic/schema.edn"
                                           "resources/datomic/geojsonschema.edn")]
     #_(do (utils/install-rand-ents conn 30 utils/create-feature)
-          (utils/bulk-load-ents conn 6 3 bulk/dyn-cost-partition))
+          (bulk/bulk-index-ents conn 6 3 bulk/dyn-cost-partition))
 
     (do (utils/create-tree conn 6 3)
         (utils/install-rand-ents conn 1 utils/create-feature)

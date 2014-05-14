@@ -3,7 +3,8 @@
             [clojure.test :refer :all]
             [meridian.datomic-rtree.rtree :refer :all]
             [meridian.datomic-rtree.bbox :as bbox]
-            [meridian.datomic-rtree.test-utils :as utils]))
+            [meridian.datomic-rtree.test-utils :as utils]
+            [meridian.datomic-rtree.bulk :as bulk]))
 
 (deftest bbox-area-test
   (are [bbox area] (== (bbox/area bbox) area)
@@ -101,5 +102,5 @@
                                           "resources/datomic/schema.edn"
                                           "resources/datomic/geojsonschema.edn")]
     (utils/install-rand-ents conn num-entries utils/create-feature)
-    (utils/bulk-load-ents conn 6 3)
+    (bulk/bulk-index-entities conn 6 3)
     (is (= num-entries (count (all-entries (d/db conn)))))))

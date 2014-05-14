@@ -52,6 +52,9 @@
     :db/cardinality :db.cardinality/one
     :db.install/_attribute :db.part/db}
 
+   ;;x and y are not part of the GeoJSON format, but added here as an
+   ;;optimisation to avoid having to parse the embedded EDN when
+   ;;dealing with points
    {:db/id #db/id[:db.part/db]
     :db/ident :x
     :db/valueType :db.type/double

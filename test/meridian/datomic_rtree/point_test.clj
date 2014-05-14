@@ -38,7 +38,7 @@
 (defn insert-points-and-index [conn points max-children min-children]
   (utils/create-tree conn max-children min-children)
   @(d/transact conn points)
-  (utils/bulk-load-ents conn max-children min-children bulk/dyn-cost-partition))
+  (bulk/bulk-index-entities conn max-children min-children bulk/dyn-cost-partition))
 
 (deftest point-contained-test
   (are [p bbox] (true? (contained? p bbox))

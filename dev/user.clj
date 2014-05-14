@@ -32,7 +32,7 @@
   (->> (d/q '[:find ?e :where [?e :type :Point]] (db conn))
        (map #(d/entity (db conn) (first %)))
        (map #(into {} (seq %)))
-       (map #(->> % :bbox read-string (take 2)))))
+       (map (juxt :x :y))))
 
 (defn plot-svg-points [points filename]
   (let [max-x (reduce max (map first points))

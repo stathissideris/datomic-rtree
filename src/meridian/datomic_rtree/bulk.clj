@@ -1,6 +1,7 @@
 (ns meridian.datomic-rtree.bulk
   (:require [meridian.datomic-rtree.bbox :as bbox]
-            [meridian.datomic-rtree.rtree :as rtree]))
+            [meridian.datomic-rtree.rtree :as rtree]
+            [datomic.api :as d]))
 
 (defn min-cost-index
   "Calculate an index into the list of entities that minimises
@@ -78,3 +79,14 @@
                    :rtree/root (-> ents last :db/id)
                    :rtree/max-children max-children
                    :rtree/min-children min-children}))))
+
+(defn bulk-index-entities
+  "Bulk indexes all the entries in the database that have Hilbert
+  values. Use this when first seeding the database."
+  [conn max-children min-children part-fn]
+  (let [ents (rtree/hilbert-ents (d/db conn))]
+    @(d/transact conn
+                 (bulk-tx ents #db/id[:db.part/user]
+                               max-children min-children bbox/area
+                               part-fn))
+    :done))

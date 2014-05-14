@@ -74,14 +74,6 @@
       @(d/transact conn [[:rtree/insert-entry tree ent]]))
     :done))
 
-(defn bulk-load-ents [conn max-children min-children part-fn]
-  (let [ents (rtree/hilbert-ents (d/db conn))]
-    @(d/transact conn
-                 (bulk/bulk-tx ents #db/id[:db.part/user]
-                               max-children min-children bbox/area
-                               part-fn))
-    :done))
-
 (defn all-entries [db]
   (map #(d/entity db (first %))
        (d/q '[:find ?e :where [?e :node/entry]] db)))
@@ -112,15 +104,15 @@
     (println "--------------------------")
     (println "--# Tree Build Timings #--")
     (time-builds (conn-fn) load-ents "load-ents.")
-    (time-builds (conn-fn) #(bulk-load-ents %1 max-children min-children bulk/cost-partition)
-                 "bulk-load-ents and cost-partition.")
-    (time-builds (conn-fn) #(bulk-load-ents %1 max-children min-children bulk/dyn-cost-partition)
-                 "bulk-load-ents and dyn-cost-partition.")))
+    (time-builds (conn-fn) #(bulk/bulk-index-entities %1 max-children min-children bulk/cost-partition)
+                 "bulk-index-entities and cost-partition.")
+    (time-builds (conn-fn) #(bulk/bulk-index-entities %1 max-children min-children bulk/dyn-cost-partition)
+                 "bulk-index-entities and dyn-cost-partition.")))
 
 (defn search-timings [conn-fn num-entries max-children min-children]
   (let [build-tree (fn [conn]
                      (p-install-rand-ents conn num-entries minimal-entry)
-                     (bulk-load-ents conn max-children min-children bulk/dyn-cost-partition))
+                     (bulk/bulk-index-entities conn max-children min-children bulk/dyn-cost-partition))
         time-search (fn [conn search-fn search-box heading]
                       (println "------------------------------")
                       (println (str "Searching tree with " num-entries " entities using " heading))
