@@ -40,3 +40,9 @@
   (let [bbox (create-bbox-for-polygon polygon)
         results-inside-bbox (rtree/intersecting (:rtree/root (rtree/find db)) bbox)]
     (filter (by-polygon polygon) results-inside-bbox)))
+
+(defn polygon-search-points
+  "Search for points inside the declared polygon.
+The polygon is a vector of point vectors should be passed in to create a polygon (it must be closed)."
+  [poly-points db]
+  (polygon-search (jts/polygon poly-points) db))
