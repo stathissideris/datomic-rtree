@@ -1,6 +1,6 @@
 (defproject org.clojars.sideris/datomic-rtree "0.1.1-SNAPSHOT"
-  :description "An r-tree based spatial indexer for Datomic."
-  :url "http://github.com/jsofra/datomic-rtree"
+  :description "An r-tree based spatial indexer for Datomic. Fork of https://github.com/stathissideris/datomic-rtree"
+  :url "https://github.com/stathissideris/datomic-rtree"
   :license {:name "Eclipse Public License"
             :url "http://www.eclipse.org/legal/epl-v10.html"}
   :dependencies [[org.clojure/clojure "1.5.1"]
