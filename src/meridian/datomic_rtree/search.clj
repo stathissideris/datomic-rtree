@@ -36,13 +36,15 @@
   (fn [node]
     (.contains polygon (jts/point ((juxt :x :y) (:node/entry node))))))
 
-(defn polygon-search [polygon db]
-  (let [bbox (create-bbox-for-polygon polygon)
+(defn polygon-search
+  "Search for points inside the declared polygon. The polygon is a
+  vector of vectors of point vectors should be passed in to create a
+  polygon (it must be closed). The first top level vector defines the
+  outline of the shape, subsequent (optional) vectors define any holes
+  within it."
+  [polygon db]
+  (let [polygon (jts/polygon polygon)
+        bbox (create-bbox-for-polygon polygon)
         results-inside-bbox (rtree/intersecting (:rtree/root (rtree/find db)) bbox)]
     (filter (by-polygon polygon) results-inside-bbox)))
 
-(defn polygon-search-points
-  "Search for points inside the declared polygon.
-The polygon is a vector of point vectors should be passed in to create a polygon (it must be closed)."
-  [poly-points db]
-  (polygon-search (jts/polygon poly-points) db))

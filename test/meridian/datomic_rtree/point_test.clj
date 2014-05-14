@@ -165,12 +165,13 @@
     (insert-points-and-index conn points 6 3)
     (testing "polygon search"
       (is (= #{[4.0 4.0] [5.0 3.0]}
-             (polygon-search (jts/polygon [[[2 2] [2 100] [80 100] [100 2] [2 2]]]) (db conn)))))))
+             (polygon-search [[[2 2] [2 100] [80 100] [100 2] [2 2]]] (db conn)))))))
 
 (defn- svg-path->jts-polygon
-  "Converts an SVG path specification into a JTS polygon. This is not
-  supposed to be a generic function, but it works on polyline paths
-  generated using Inkscape."
+  "Converts an SVG path specification into a JTS polygon
+  specification (just the vector, doesn't call the constructor on
+  them. This is not supposed to be a generic function, but it works on
+  polyline paths generated using Inkscape."
   [svg-path]
   (let [points
         (->> (string/split svg-path #" ")
@@ -180,7 +181,7 @@
              (map (fn [[x y]] [(Double/parseDouble x) (Double/parseDouble y)]))
              (reductions (fn [[x1 y1] [x2 y2]] [(+ x1 x2) (+ y1 y2)]))
              (into []))]
-    (jts/polygon (vector (conj points (first points))))))
+    (vector (conj points (first points)))))
 
 (defn- insert-test-points [filename conn]
   (let [hilbert-index-fn (hilbert/index-fn 28 [0.0 1001.0])
