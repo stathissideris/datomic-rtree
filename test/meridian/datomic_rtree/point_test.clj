@@ -14,8 +14,7 @@
              [bulk :as bulk]
              [shapes :as shapes]
              [hilbert :as hilbert]
-             [distance-search :as dist-search]
-             [polygon-search :as poly-search]]
+             [search :as search]]
             [meridian.clj-jts :as jts]))
 
 (defn connect-datomic []
@@ -26,13 +25,13 @@
 
 (defn distance-search
   [[x y] distance database]
-  (->> (dist-search/distance-search [x y] distance database)
+  (->> (search/distance-search [x y] distance database)
        (map (fn [x] ((juxt :x :y) (->> x :node/entry seq (into {})))))
        (into #{})))
 
 (defn polygon-search
   [polygon database]
-  (->> (poly-search/polygon-search polygon database)
+  (->> (search/polygon-search polygon database)
        (map (fn [x] ((juxt :x :y) (->> x :node/entry seq (into {})))))
        (into #{})))
 
