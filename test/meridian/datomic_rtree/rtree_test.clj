@@ -1,4 +1,5 @@
 (ns meridian.datomic-rtree.rtree-test
+  (:refer-clojure :exclude [find])
   (:require [datomic.api :as d]
             [clojure.test :refer :all]
             [meridian.datomic-rtree.rtree :refer :all]

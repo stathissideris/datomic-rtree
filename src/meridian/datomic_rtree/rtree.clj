@@ -1,5 +1,6 @@
 (ns meridian.datomic-rtree.rtree
   (:use [datomic.api :only (q db) :as d])
+  (:refer-clojure :exclude [find])
   (:require [meridian.datomic-rtree.bbox :as bbox])
   (:require [clojure.core.reducers :as r]))
 
