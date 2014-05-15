@@ -17,8 +17,7 @@
              [bbox :as bbox]
              [bulk :as bulk]
              [shapes :as shapes]
-             [hilbert :as hilbert]
-             [distance-search :as dist-search]]))
+             [hilbert :as hilbert]]))
 
 (defn reset [] (refresh))
 
