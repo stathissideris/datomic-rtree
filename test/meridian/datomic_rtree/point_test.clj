@@ -229,6 +229,24 @@
       (-> svg dali/dali->hiccup (dali/spit-svg "/var/www/points-query.svg")))))
 
 (deftest test-advanced-polygon-search
+  (let [conn (connect-datomic)]
+    (insert-test-points "test-data/search-points.edn" conn)
+    (let [tree (rtree/find (db conn))]
+      (testing "distance (circle) search"
+        (is (= (-> "test-data/distance-expected.edn" io/resource slurp read-string)
+               (distance-search [369.2355 316.3675000000001] 107.9805 (db conn)))))
+      (testing "star-like polygon search"
+        (is (= (-> "test-data/path1-expected.edn" io/resource slurp read-string)
+               (polygon-search (svg-path->jts-polygon
+                                "m 735,313 18,-66 17,-59 33,11 5,59 -22,66 117,-14 9,23 -37,52 -105,11 -54,109 -49,-61 44,-95 -27,-30 -21,0 -28,-7 1,-93 17,-28 13,57 54,41 z")
+                               (db conn)))))
+      (testing "pi-like polygon search"
+        (is (= (-> "test-data/path2-expected.edn" io/resource slurp read-string)
+               (polygon-search (svg-path->jts-polygon
+                                "m 301,829 29,-193 239,-3 17,283 -85,-12 1,-200 -106,-4 -11,144 z")
+                               (db conn))))))))
+
+(deftest test-polygon-search-with-insertion
   (let [conn (connect-datomic)
         hilbert-index-fn (hilbert/index-fn 28 [0.0 1001.0])
         make-point (partial shapes/point-entry hilbert-index-fn)]
