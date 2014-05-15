@@ -235,7 +235,7 @@
     (println "Creating tree and inserting points in bulk...")
     (insert-test-points "test-data/search-points.edn" conn)
     (let [tree (rtree/find (db conn))]
-      (println "Inserting one more point...")
+      (println "Inserting one more point within circle...")
       @(d/transact conn (rtree/insert-entry-tx tree (make-point 369.2355 316.3675000000001) :install-entry true))
       (println "Testing searches...")
       (testing "distance (circle) search"
@@ -243,14 +243,11 @@
                      [369.2355 316.3675000000001])
                (distance-search [369.2355 316.3675000000001] 107.9805 (db conn)))))
       (testing "star-like polygon search"
-        (is (= (-> "test-data/path1-expected.edn" io/resource slurp read-string)
+        (println "Inserting one more point within star...")
+        @(d/transact conn (rtree/insert-entry-tx tree (make-point 700 428) :install-entry true))
+        (is (= (conj (-> "test-data/path1-expected.edn" io/resource slurp read-string) [700.0 428.0])
                (polygon-search (svg-path->jts-polygon
                                 "m 735,313 18,-66 17,-59 33,11 5,59 -22,66 117,-14 9,23 -37,52 -105,11 -54,109 -49,-61 44,-95 -27,-30 -21,0 -28,-7 1,-93 17,-28 13,57 54,41 z")
-                               (db conn)))))
-      (testing "pi-like polygon search"
-        (is (= (-> "test-data/path2-expected.edn" io/resource slurp read-string)
-               (polygon-search (svg-path->jts-polygon
-                                "m 301,829 29,-193 239,-3 17,283 -85,-12 1,-200 -106,-4 -11,144 z")
                                (db conn))))))))
 
 (comment
