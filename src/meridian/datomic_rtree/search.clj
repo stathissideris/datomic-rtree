@@ -13,9 +13,13 @@
     (bbox/bbox min-x min-y width height)))
 
 (defn- by-distance [[cx cy] r]
-  (let [center-point (jts/point [cx cy])]
-    (fn [node]
-      (<= (.distance (jts/point ((juxt :x :y) (:node/entry node))) center-point) r))))
+  (fn [node]
+    (let [e (:node/entry node)
+          x (:x e)
+          y (:y e)]
+     (<= (+ (* (- cx x) (- cx x))
+            (* (- cy y) (- cy y)))
+         (* r r)))))
 
 (defn distance-search [[center-x center-y] distance db]
   (let [bbox (create-bbox-for-circle [center-x center-y] distance)
