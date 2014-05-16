@@ -40,6 +40,17 @@
              (map (fn [[x y]] [:circle [x y] 2]) points)]]
     (-> svg dali/dali->hiccup (dali/spit-svg filename))))
 
+(defn tree-depth
+  "Discover the depth of the rtree by taking a random path to the bottom"
+  [db]
+  (loop [node (:rtree/root (rtree/find db))
+         depth 0]
+    (let [children (:node/children node)]
+      (if (empty? children)
+        depth
+        (recur (rand-nth (vec children))
+               (inc depth))))))
+
 (comment
   (let [points (take 3000 (repeatedly #(vector (rand-int 1000) (rand-int 1000))))]
     (spit "resources/test-data/search-points.edn" (with-out-str (pprint points)))
